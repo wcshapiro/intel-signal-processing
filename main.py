@@ -12,15 +12,40 @@ import os
 import sounddevice as sd
 import json
 import asyncio
+from dejavu import Dejavu
+from dejavu.logic.recognizer.file_recognizer import FileRecognizer
+from dejavu.logic.recognizer.microphone_recognizer import MicrophoneRecognizer
 
 
+def callback(indata, outdata, frames, time, status):
+        if status:
+            print(status)
+        outdata[:] = indata
 
 def record():
     fs =  48000 #44100
-    seconds = 5
-    sd.default.device = 'MacBook Pro Microphone'
+    seconds = 6
+    sd.default.device = ['MacBook Pro Microphone','MacBook Pro Speakers']
     myrecording = sd.rec(int(seconds*fs),samplerate=fs,channels=1,dtype=np.int16)
-    print("returning")
+    # instream = sd.InputStream(samplerate=fs,dtype=np.int16,device = 'MacBook Pro Microphone')
+    # outstream = sd.OutputStream(samplerate=fs,dtype=np.int16,device = 'MacBook Pro Speakers')
+    # with sd.Stream(device=('MacBook Pro Microphone', 'MacBook Pro Speakers'),
+    #                samplerate=fs, 
+    #                dtype=np.int16, callback=callback):
+    #     print('#' * 80)
+    #     print('press Return to quit')
+    #     print('#' * 80)
+    #     strem = sd.get_stream()
+    #     strem.
+    sd.wait()
+    # sd.stop()
+    # print(myrecording)
+    # sd.play(myrecording)
+    # exit()
+
+
+    # instream.start()
+    # outstream.start()
     return myrecording
     
     # sd.wait()
@@ -38,7 +63,7 @@ def calc_distances(data): # was sound_file
     # sig = np.frombuffer(signal_wave.readframes(sample_rate), dtype=np.int16)
 
     #write to json
-    
+    # sig = data
     # sig = sig[:]
     # left, right = data[0::2], data[1::2]
     # plt.figure(1)
@@ -47,7 +72,7 @@ def calc_distances(data): # was sound_file
     # plot_a.set_xlabel('sample rate * time')
     # plot_a.set_ylabel('energy')
     # plot_b = plt.subplot(212)
-    # plot_b.specgram(sig, NFFT=1024, Fs=sample_rate, noverlap=900)
+    # plot_b.specgram(sig[0], NFFT=1024, Fs=sample_rate, noverlap=900)
     # plot_b.set_xlabel('Time')
     # plot_b.set_ylabel('Frequency')
     # plt.show()
@@ -74,14 +99,35 @@ def calc_distances(data): # was sound_file
 
 def accept_test(pattern, test, min_error):
     for element in test:
-        if len(pattern) > len(test[element][0]['distance']):
-            return [False,None ]
         for i, dt in enumerate(pattern):
-            if not dt - test[element][0]["distance"][i] < min_error:
-                return [False,None ]
-    return [True,element ]
+            #print(test[element][0]['distance'])
+            if dt - test[element][0]['distance'][i] < min_error:
+                return [True,element]
+        # if len(pattern) > len(test[element][0]['distance']):
+        #     return [False,None ]
+        # for i, dt in enumerate(pattern):
+        #     if not dt - test[element][0]["distance"][i] < min_error:
+        #         return [False,None ]
+    return [False,None ]
 
 def main():
+    with open("dejavu.cnf.SAMPLE") as f:
+        config = json.load(f)
+
+    # create a Dejavu instance
+    djv = Dejavu(config)
+
+    # Fingerprint all the mp3's in the directory we give it
+    djv.fingerprint_directory("audio_samples", [".wav"])
+    print("complete")
+
+    secs = 5
+    results = djv.recognize(MicrophoneRecognizer, seconds=secs)
+    if results is None:
+        print("Nothing recognized -- did you play the song out loud so your mic could hear it? :)")
+    else:
+        print(f"From mic with {secs} seconds we recognized: {results}\n")
+
 
     # choice = input("test(T) or Record(R): ").capitalize()
     # if choice == "T":
@@ -105,22 +151,22 @@ def main():
     #         exit()
     #     test = calc_distances(names[file2])
 
-    with open('data.txt') as json_file:
-        data = json.load(json_file)
-    # sound_file = "patientCall.wav"
-    # data[sound_file] = []
-    # data[sound_file].append({
-    #     "distance": calc_distances(sound_file)
-    # })    
-    # with open('data.txt', 'w') as outfile:
-    #     json.dump(data, outfile)
-    # exit()
-    min_error = 0.01
-    
-    recording = record()
-    distance_list = calc_distances(recording)
-    match = accept_test(distance_list,data,min_error)
-    print(match[1])
+    # with open('data.txt') as json_file:
+    #     data = json.load(json_file)
+    # # sound_file = "patientCall.wav"
+    # # data[sound_file] = []
+    # # data[sound_file].append({
+    # #     "distance": calc_distances(sound_file)
+    # # })    
+    # # with open('data.txt', 'w') as outfile:
+    # #     json.dump(data, outfile)
+    # # exit()
+    # min_error = 0.005
+    # while(1):
+    #     recording = record()
+    #     distance_list = calc_distances(recording)
+    #     match = accept_test(distance_list,data,min_error)
+    #     print(match[1])
 # the minimum difference between the patterns in seconds
         
         # print( accept_test(pattern, test, min_error))
